@@ -1,2 +1,3 @@
-# assyst-alerta
-Pipeline assíncrono para monitoramento de chamados IFS Assyst, que notifica violações de SLA no Google Chat via webhook.
+# Assyst Alerta
+
+**Assyst Alerta** é um pipeline assíncrono de observabilidade operacional para chamados de TI no IFS Assyst, responsável por detectar riscos e violações de SLA e notificar equipes técnicas automaticamente via Google Chat.
