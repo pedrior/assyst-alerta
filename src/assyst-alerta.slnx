@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Assyst.Alerta.UnitTests/Assyst.Alerta.UnitTests.csproj" />
+  <Project Path="Assyst.Alerta/Assyst.Alerta.csproj" />
+</Solution>
