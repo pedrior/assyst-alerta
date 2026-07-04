@@ -37,16 +37,7 @@ internal static class TestOptions
         return Options.Create(new EventIngestionOptions
         {
             BaseUrl = new Uri(baseUrl, UriKind.Absolute),
-            Authorization = authorization,
-            DepartmentIds = departmentIds ??
-            [
-                547, // 2N – João Pessoa
-                553, // 2N – Patos
-                554, // 2N – Souza
-                555, // 2N – Campina Grande
-                570, // 2N – Manut. Equip.
-                594 // 2N – PJe
-            ]
+            Authorization = authorization
         });
     }
 
@@ -58,11 +49,7 @@ internal static class TestOptions
         return Options.Create(new EventProcessingOptions
         {
             Sla = sla ?? TimeSpan.FromMinutes(10),
-            NearBreachThreshold = nearBreachThreshold,
-            AssignorDepartmentsFilter = assignorDepartmentsFilter ??
-            [
-                "1_NIVEL"
-            ]
+            NearBreachThreshold = nearBreachThreshold
         });
     }
 

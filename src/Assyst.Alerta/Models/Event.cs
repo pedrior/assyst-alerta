@@ -24,16 +24,10 @@ internal sealed record Event
 
     [JsonPropertyName("assignedServDeptId")]
     public required int AssignedDeptId { get; init; }
-
-    [JsonPropertyName("originalAssignedServDeptSC")]
-    public string OriginDeptName { get; init; } = string.Empty;
-
-    [JsonPropertyName("lastActionTypeId")]
-    public int LastActionId { get; init; }
-
-    [JsonPropertyName("lastActionServDeptSC")]
-    public string LastActionDeptName { get; init; } = string.Empty;
-
+    
     [JsonPropertyName("lastSlaClockStop")]
     public DateTimeOffset? SlaClockStoppedAt { get; init; }
+    
+    [JsonPropertyName("actions")]
+    public IReadOnlyCollection<EventAction> Actions { get; init; } = [];
 }

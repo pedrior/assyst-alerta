@@ -1,3 +1,4 @@
+using Assyst.Alerta.Models;
 using Assyst.Alerta.Processing;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -9,57 +10,71 @@ public sealed class CallbackFilterTests
     private static CallbackFilter NewFilter() => new(new MemoryCache(new MemoryCacheOptions()));
 
     [Fact]
-    public void IsEventRegistered_BeforeRegister_ReturnsFalse()
+    public void IsAlertRegistered_BeforeRegister_ReturnsFalse()
     {
         // Arrange
         var filter = NewFilter();
 
         // Act
-        var result = filter.IsEventRegistered(1023610);
+        var result = filter.IsAlertRegistered(1023610, AlertType.Reopened);
 
         // Assert
         result.Should().BeFalse();
     }
 
     [Fact]
-    public void IsEventRegistered_AfterRegister_ReturnsTrue()
+    public void IsAlertRegistered_AfterRegister_ReturnsTrue()
     {
         // Arrange
         var filter = NewFilter();
-        filter.RegisterEvent(1023610);
+        filter.RegisterAlert(1023610, AlertType.Reopened);
 
         // Act
-        var result = filter.IsEventRegistered(1023610);
+        var result = filter.IsAlertRegistered(1023610, AlertType.Reopened);
 
         // Assert
         result.Should().BeTrue();
     }
 
     [Fact]
-    public void IsEventRegistered_DifferentIdsAreIsolated()
+    public void IsAlertRegistered_DifferentIdsAreIsolated()
     {
         // Arrange
         var filter = NewFilter();
-        filter.RegisterEvent(1023610);
+        filter.RegisterAlert(1023610, AlertType.Reopened);
 
         // Act
-        var result = filter.IsEventRegistered(1044789);
+        var result = filter.IsAlertRegistered(1044789, AlertType.Reopened);
 
         // Assert
         result.Should().BeFalse();
     }
 
     [Fact]
-    public void RegisterEvent_IsIdempotent()
+    public void IsAlertRegistered_DifferentTypesForSameEventAreIsolated()
+    {
+        // Arrange
+        var filter = NewFilter();
+        filter.RegisterAlert(1023610, AlertType.NearBreach);
+
+        // Act
+        var result = filter.IsAlertRegistered(1023610, AlertType.Breached);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RegisterAlert_IsIdempotent()
     {
         // Arrange
         var filter = NewFilter();
 
-        filter.RegisterEvent(1023610);
-        filter.RegisterEvent(1023610);
+        filter.RegisterAlert(1023610, AlertType.Reopened);
+        filter.RegisterAlert(1023610, AlertType.Reopened);
 
         // Act
-        var result = filter.IsEventRegistered(1023610);
+        var result = filter.IsAlertRegistered(1023610, AlertType.Reopened);
 
         // Assert
         result.Should().BeTrue();

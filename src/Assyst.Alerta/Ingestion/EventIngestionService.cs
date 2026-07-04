@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Assyst.Alerta.Models;
 using Assyst.Alerta.Scheduling;
 using Microsoft.Extensions.Hosting;
@@ -10,20 +11,24 @@ internal sealed partial class EventIngestionService(
     ChannelWriter<IReadOnlyList<Event>> eventsWriter,
     IHttpClientFactory httpClientFactory,
     IOptions<EventIngestionOptions> options,
-    ILoggerFactory loggerFactory,
     ILogger<EventIngestionService> logger) : BackgroundService
 {
+    private static readonly Departments[] MonitoredDepartments = Enum.GetValues<Departments>();
+
     private readonly EventIngestionOptions options = options.Value;
+    private readonly HttpClient httpClient = httpClientFactory.CreateClient(HttpClientNames.Assyst);
+
+    private bool? wasWithinSchedule;
 
     protected override async Task ExecuteAsync(CancellationToken cancellation)
     {
-        LogServiceStarted();
+        var endpoint = endpointBuilder.BuildEventsEndpoint(MonitoredDepartments);
 
-        var producers = SpawnProducers(cancellation);
+        LogServiceStarted(MonitoredDepartments.Length, options.PollingInterval);
 
         try
         {
-            await Task.WhenAll(producers);
+            await PollAsync(endpoint, cancellation);
         }
         catch (OperationCanceledException)
         {
@@ -31,7 +36,7 @@ internal sealed partial class EventIngestionService(
         }
         catch (Exception ex)
         {
-            LogEventProducerExitedUnexpectedly(ex);
+            LogPollingLoopFailed(ex);
 
             eventsWriter.Complete(ex);
         }
@@ -43,38 +48,90 @@ internal sealed partial class EventIngestionService(
         }
     }
 
-    private Task[] SpawnProducers(CancellationToken cancellation)
+    private async Task PollAsync(Uri endpoint, CancellationToken cancellation)
     {
-        var tasks = new Task[options.DepartmentIds.Length];
-        for (var i = 0; i < options.DepartmentIds.Length; i++)
+        using var timer = new PeriodicTimer(options.PollingInterval);
+
+        do
         {
-            var departmentId = options.DepartmentIds[i];
-            var producer = new EventProducer(
-                departmentId,
-                endpointBuilder.BuildNonAssignedOpenEventsEndpoint(departmentId),
-                scheduler,
-                eventsWriter,
-                httpClientFactory.CreateClient(HttpClientNames.Assyst),
-                options.PollingInterval,
-                loggerFactory.CreateLogger<EventProducer>());
+            var isWithinSchedule = scheduler.IsNowWithinSchedule();
+            if (isWithinSchedule != wasWithinSchedule)
+            {
+                if (isWithinSchedule)
+                {
+                    LogInsideSchedule();
+                }
+                else
+                {
+                    LogOutsideSchedule();
+                }
 
-            tasks[i] = producer.RunAsync(cancellation);
-        }
+                wasWithinSchedule = isWithinSchedule;
+            }
 
-        LogSpawnedEventProducers(tasks.Length);
-
-        return tasks;
+            if (isWithinSchedule)
+            {
+                await FetchAndPublishAsync(endpoint, cancellation);
+            }
+        } while (await timer.WaitForNextTickAsync(cancellation));
     }
 
-    [LoggerMessage(LogLevel.Debug, "Event ingestion service started")]
-    partial void LogServiceStarted();
+    private async Task FetchAndPublishAsync(Uri endpoint, CancellationToken cancellation)
+    {
+        try
+        {
+            using var response = await httpClient.GetAsync(
+                endpoint,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellation);
+
+            response.EnsureSuccessStatusCode();
+
+            var events = await response.Content.ReadFromJsonAsync<IReadOnlyList<Event>>(cancellation);
+            if (events is { Count: > 0 })
+            {
+                await eventsWriter.WriteAsync(events, cancellation);
+
+                LogEventsPublished(events.Count);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal shutdown path.
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            // Log and continue; a transient failure shouldn't stop the polling loop.
+            LogFetchFailed(ex);
+        }
+        catch (Exception ex)
+        {
+            LogFetchUnexpectedError(ex);
+        }
+    }
+
+    [LoggerMessage(LogLevel.Information, "Event ingestion service started polling {Count} department(s) every {Interval}")]
+    partial void LogServiceStarted(int count, TimeSpan interval);
 
     [LoggerMessage(LogLevel.Debug, "Event ingestion service stopped")]
     partial void LogServiceStopped();
 
-    [LoggerMessage(LogLevel.Information, "Spawned {Count} event producer(s)")]
-    partial void LogSpawnedEventProducers(int count);
+    [LoggerMessage(LogLevel.Information, "Now inside the active schedule")]
+    partial void LogInsideSchedule();
 
-    [LoggerMessage(LogLevel.Error, "One or more event producers exited unexpectedly")]
-    partial void LogEventProducerExitedUnexpectedly(Exception ex);
+    [LoggerMessage(LogLevel.Information, "Now outside the active schedule")]
+    partial void LogOutsideSchedule();
+
+    [LoggerMessage(LogLevel.Information, "Published {Count} event(s)")]
+    partial void LogEventsPublished(int count);
+
+    [LoggerMessage(LogLevel.Warning, "Fetch failed")]
+    partial void LogFetchFailed(Exception ex);
+
+    [LoggerMessage(LogLevel.Error, "Unexpected error during fetch")]
+    partial void LogFetchUnexpectedError(Exception ex);
+
+    [LoggerMessage(LogLevel.Error, "Polling loop exited unexpectedly")]
+    partial void LogPollingLoopFailed(Exception ex);
 }

@@ -23,7 +23,7 @@ internal static class ServiceCollectionExtensions
         {
             var channel = Channel.CreateUnbounded<IReadOnlyList<Event>>(new UnboundedChannelOptions
             {
-                SingleWriter = false,
+                SingleWriter = true,
                 SingleReader = true
             });
 
@@ -53,7 +53,7 @@ internal static class ServiceCollectionExtensions
                         .GetRequiredService<IOptions<EventIngestionOptions>>()
                         .Value;
 
-                    // No retry strategy: producer uses a PeriodicTimer that schedules the next attempt.
+                    // No retry strategy: the worker's PeriodicTimer schedules the next attempt.
                     // Adding retries here would compete with that cadence and queue duplicate work.
                     pipeline.AddCircuitBreaker(new CircuitBreakerStrategyOptions<HttpResponseMessage>
                     {

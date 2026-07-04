@@ -1,3 +1,4 @@
+using Assyst.Alerta.Models;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Assyst.Alerta.Processing;
@@ -6,9 +7,12 @@ internal sealed class CallbackFilter(IMemoryCache cache)
 {
     private readonly TimeSpan ttl = TimeSpan.FromHours(6);
 
-    public bool IsEventRegistered(int id) => cache.TryGetValue(FormatEventKey(id), out _);
+    public bool IsAlertRegistered(int eventId, AlertType type, long? actionId = null) => 
+        cache.TryGetValue(FormatKey(eventId, type, actionId), out _);
 
-    public void RegisterEvent(int id) => cache.Set(FormatEventKey(id), true, ttl);
+    public void RegisterAlert(int eventId, AlertType type, long? actionId = null) => 
+        cache.Set(FormatKey(eventId, type, actionId), true, ttl);
 
-    private static string FormatEventKey(int id) => $"cb:{id}";
+    private static string FormatKey(int eventId, AlertType type, long? actionId) => 
+        actionId.HasValue ? $"cb:{eventId}:{type}:{actionId}" : $"cb:{eventId}:{type}";
 }

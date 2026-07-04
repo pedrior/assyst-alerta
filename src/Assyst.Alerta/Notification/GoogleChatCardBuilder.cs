@@ -6,6 +6,32 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
 {
     public object Build(IReadOnlyList<EventAlert> alerts, DateTimeOffset now)
     {
+        var cards = new List<object>();
+        
+        // Separate alerts into SLA violations and Reopened events
+        var slaAlerts = alerts.Where(a => a.Type is AlertType.Breached or AlertType.NearBreach).ToList();
+        var reopenedAlerts = alerts.Where(a => a.Type is AlertType.Reopened).ToList();
+
+        // Build the SLA card if there are any SLA alerts
+        if (slaAlerts.Count > 0)
+        {
+            cards.Add(BuildCard("🚨 Violação de SLA", slaAlerts, now));
+        }
+
+        // Build the Reopened card if there are any Reopened alerts
+        if (reopenedAlerts.Count > 0)
+        {
+            cards.Add(BuildCard("🔄 Reabertura de chamados", reopenedAlerts, now));
+        }
+
+        return new
+        {
+            cardsV2 = cards.ToArray()
+        };
+    }
+
+    private object BuildCard(string title, IReadOnlyList<EventAlert> alerts, DateTimeOffset now)
+    {
         var sections = new object[alerts.Count];
         for (var i = 0; i < alerts.Count; i++)
         {
@@ -14,35 +40,49 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
 
         return new
         {
-            cardsV2 = new[]
+            cardId = Guid.NewGuid().ToString("N"),
+            card = new
             {
-                new
+                header = new
                 {
-                    cardId = Guid.NewGuid().ToString("N"),
-                    card = new
-                    {
-                        header = new
-                        {
-                            title = "🚨 Alerta",
-                            subtitle = alerts.Count is 1
-                                ? "1 chamado requer atenção"
-                                : $"{alerts.Count} chamados requerem atenção"
-                        },
-                        sections
-                    }
-                }
+                    title,
+                    subtitle = alerts.Count is 1
+                        ? "1 chamado requer atenção"
+                        : $"{alerts.Count} chamados requerem atenção"
+                },
+                sections
             }
         };
     }
 
     private object BuildSection(EventAlert alert, DateTimeOffset now)
     {
-        var elapsed = now - alert.AssignedAt;
+        // Reopened alerts measure elapsed time from when the ticket was reopened, not when it was assigned.
+        // ReopenedAt is guaranteed to be set whenever Type is Reopened.
+        var referenceAt = alert.Type is AlertType.Reopened
+            ? alert.ReopenedAt ?? throw new InvalidOperationException("Reopened alerts must have ReopenedAt set.")
+            : alert.AssignedAt;
+
+        var elapsed = now - referenceAt;
         var elapsedText = FormatDuration(elapsed);
 
-        var isBreached = alert.Type is AlertType.Breached;
-        var color = isBreached ? "#D32F2F" : "#E67C00";
-        var statusIcon = isBreached ? "timer_off" : "schedule";
+        var (color, statusIcon, reasonText) = alert.Type switch
+        {
+            AlertType.Breached => (
+                "#D32F2F",
+                "timer_off",
+                $"Sem técnico atribuído ou pendente de atendimento há {elapsedText}"),
+            AlertType.NearBreach => (
+                "#E67C00",
+                "schedule",
+                $"Sem técnico atribuído ou pendente de atendimento há {elapsedText}"),
+            AlertType.Reopened => (
+                "#1A73E8",
+                "restore",
+                $"Chamado reaberto em {referenceAt:dd/MM/yy 'às' HH:mm}"),
+            _ => throw new ArgumentOutOfRangeException(nameof(alert.Type), alert.Type, "Unsupported alert type")
+        };
+
         var userLabel = alert.IsVipUser ? "Usuário(a) VIP" : "Usuário(a)";
         var eventUrl = string.Format(options.Value.EventUrlFormat.OriginalString, alert.Id);
 
@@ -52,13 +92,13 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
             uncollapsibleWidgetsCount = 1,
             widgets = new[]
             {
-                // Header: colored elapsed time + reference + department + assigned date, with "Abrir" button
+                // Header: colored elapsed time + reference + department + reference date, with "Abrir" button
                 DecoratedText(
                     icon: statusIcon,
                     text: $"<font color=\"{color}\"><b>{elapsedText}</b></font>" +
                           $" · <b>{alert.Ref}</b>" +
                           $" · {alert.AssignedDeptName}" +
-                          $" · {alert.AssignedAt:dd/MM/yy HH:mm}",
+                          $" · {referenceAt:dd/MM/yy HH:mm}",
                     button: new
                     {
                         text = "Abrir",
@@ -74,7 +114,7 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
                 DecoratedText(
                     icon: "info",
                     topLabel: "Motivo",
-                    text: $"Sem técnico atribuído ou pendente de atendimento há {elapsedText}"),
+                    text: reasonText),
                 DecoratedText(icon: "person", topLabel: userLabel, text: alert.UserName),
                 DecoratedText(icon: "description", topLabel: "Resumo", text: alert.Summary)
             }

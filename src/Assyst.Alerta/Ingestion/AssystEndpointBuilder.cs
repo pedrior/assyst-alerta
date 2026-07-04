@@ -1,3 +1,5 @@
+using Assyst.Alerta.Models;
+
 namespace Assyst.Alerta.Ingestion;
 
 internal sealed class AssystEndpointBuilder(IOptions<EventIngestionOptions> options)
@@ -8,24 +10,30 @@ internal sealed class AssystEndpointBuilder(IOptions<EventIngestionOptions> opti
     private static readonly string FieldsQuery = string.Join(
         ",",
         "id",
-        "affectedUserName",
-        "alertStatusEnum",
-        "shortDescription",
         "formattedReference",
-        "assignedServDeptId",
+        "affectedUserId",
+        "shortDescription",
+        "alertStatusEnum",
         "dateOfLastAssignment",
+        "assignedServDeptId",
         "lastSlaClockStop",
-        "originalAssignedServDeptSC",
-        "lastActionTypeId",
-        "lastActionServDeptSC");
+        "actions[dateActioned,actioningServDept[name],actionType[shortCode]]");
 
-    public Uri BuildNonAssignedOpenEventsEndpoint(int departmentId)
+    public Uri BuildEventsEndpoint(IReadOnlyCollection<Departments> departments)
     {
+        ArgumentOutOfRangeException.ThrowIfZero(departments.Count);
+
+        var departmentIdQueries = new string[departments.Count];
+        var i = 0;
+        foreach (var department in departments)
+        {
+            departmentIdQueries[i++] = $"assignedServDeptId={(int)department}";
+        }
+
         var builder = new UriBuilder(options.Value.BaseUrl)
         {
             Path = EventsPath,
-            Query = $"assignedServDeptId={departmentId}" +
-                    $"&assignedUserId=0" +
+            Query = $"{string.Join('&', departmentIdQueries)}" +
                     $"&eventStatus=open" +
                     $"&fields={FieldsQuery}"
         };

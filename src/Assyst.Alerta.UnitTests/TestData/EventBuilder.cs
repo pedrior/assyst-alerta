@@ -1,5 +1,4 @@
 using Assyst.Alerta.Models;
-using Assyst.Alerta.Processing;
 
 namespace Assyst.Alerta.UnitTests.TestData;
 
@@ -14,9 +13,6 @@ internal sealed class EventBuilder
     private string alertStatus = string.Empty;
     private DateTimeOffset assignedAt = DefaultAssignedAt;
     private int assignedDepartmentId = 547;
-    private string originDepartmentName = "1_NIVEL";
-    private int lastActionTypeId = EventActions.Assigned;
-    private string lastActionDepartmentName = "1_NIVEL";
     private DateTimeOffset? pausedAt;
 
     public EventBuilder WithId(int value)
@@ -60,25 +56,7 @@ internal sealed class EventBuilder
         assignedDepartmentId = value;
         return this;
     }
-
-    public EventBuilder WithOriginDepartmentName(string value)
-    {
-        originDepartmentName = value;
-        return this;
-    }
-
-    public EventBuilder WithLastActionTypeId(int value)
-    {
-        lastActionTypeId = value;
-        return this;
-    }
-
-    public EventBuilder WithLastActionDepartmentName(string value)
-    {
-        lastActionDepartmentName = value;
-        return this;
-    }
-
+    
     public EventBuilder WithPausedAt(DateTimeOffset? value)
     {
         pausedAt = value;
@@ -94,9 +72,6 @@ internal sealed class EventBuilder
         AlertStatus = alertStatus,
         AssignedAt = assignedAt,
         AssignedDeptId = assignedDepartmentId,
-        OriginDeptName = originDepartmentName,
-        LastActionId = lastActionTypeId,
-        LastActionDeptName = lastActionDepartmentName,
         SlaClockStoppedAt = pausedAt
     };
 }

@@ -7,7 +7,4 @@ internal sealed class EventProcessingOptions
 
     [Required, Range(0.0, 0.9)]
     public required double NearBreachThreshold { get; init; }
-
-    [Required, MinLength(1)]
-    public required string[] AssignorDepartmentsFilter { get; init; }
 }

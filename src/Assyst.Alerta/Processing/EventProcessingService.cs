@@ -1,11 +1,11 @@
 using Assyst.Alerta.Models;
+using Assyst.Alerta.Processing.Evaluators;
 using Microsoft.Extensions.Hosting;
 
 namespace Assyst.Alerta.Processing;
 
 internal sealed partial class EventProcessingService(
-    TimeProvider time,
-    ISlaEvaluator slaEvaluator,
+    IEnumerable<IEventEvaluator> evaluators,
     CallbackFilter callbackFilter,
     ChannelReader<IReadOnlyList<Event>> eventsReader,
     ChannelWriter<IReadOnlyList<EventAlert>> alertsWriter,
@@ -19,22 +19,27 @@ internal sealed partial class EventProcessingService(
         {
             await foreach (var events in eventsReader.ReadAllAsync(cancellation))
             {
-                LogProcessingBatch(events.Count, events[0].AssignedDeptId);
+                LogProcessingBatch(events.Count);
 
-                var now = time.GetLocalNow();
                 var alerts = new List<EventAlert>();
 
                 foreach (var @event in events)
                 {
-                    if (callbackFilter.IsEventRegistered(@event.Id))
+                    foreach (var evaluator in evaluators)
                     {
-                        LogEventSkippedSeenCallback(@event.Ref);
+                        if (evaluator.Evaluate(@event) is not { } alert)
+                        {
+                            continue;
+                        }
 
-                        continue;
-                    }
+                        // Pass the ActionId to uniquely identify this specific occurrence
+                        if (callbackFilter.IsAlertRegistered(@event.Id, alert.Type, alert.ActionId))
+                        {
+                            LogAlertSkippedSeenCallback(@event.Ref, alert.Type);
+                            continue;
+                        }
 
-                    if (slaEvaluator.Evaluate(@event, now) is { } alert)
-                    {
+                        callbackFilter.RegisterAlert(@event.Id, alert.Type, alert.ActionId);
                         alerts.Add(alert);
                     }
                 }
@@ -42,7 +47,6 @@ internal sealed partial class EventProcessingService(
                 if (alerts.Count > 0)
                 {
                     await alertsWriter.WriteAsync(alerts, cancellation);
-
                     LogProducedAlerts(alerts.Count);
                 }
             }
@@ -50,7 +54,6 @@ internal sealed partial class EventProcessingService(
         finally
         {
             alertsWriter.TryComplete();
-
             LogServiceStopped();
         }
     }
@@ -61,11 +64,11 @@ internal sealed partial class EventProcessingService(
     [LoggerMessage(LogLevel.Debug, "Event processing service stopped")]
     partial void LogServiceStopped();
 
-    [LoggerMessage(LogLevel.Debug, "Processing batch of {Count} event(s) from department {DeptId}")]
-    partial void LogProcessingBatch(int count, int deptId);
+    [LoggerMessage(LogLevel.Debug, "Processing batch of {Count} event(s)")]
+    partial void LogProcessingBatch(int count);
 
-    [LoggerMessage(LogLevel.Debug, "Event {Ref} skipped, callback already registered")]
-    partial void LogEventSkippedSeenCallback(string @ref);
+    [LoggerMessage(LogLevel.Debug, "Event {Ref} skipped, {Type} callback already registered")]
+    partial void LogAlertSkippedSeenCallback(string @ref, AlertType type);
 
     [LoggerMessage(LogLevel.Information, "Produced {Count} alert(s)")]
     partial void LogProducedAlerts(int count);

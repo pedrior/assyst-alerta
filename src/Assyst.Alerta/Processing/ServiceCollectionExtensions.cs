@@ -1,4 +1,5 @@
 using Assyst.Alerta.Models;
+using Assyst.Alerta.Processing.Evaluators;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -37,7 +38,8 @@ internal static class ServiceCollectionExtensions
             services.AddMemoryCache();
 
             services.AddSingleton<CallbackFilter>();
-            services.AddSingleton<ISlaEvaluator, SlaEvaluator>();
+            services.AddSingleton<IEventEvaluator, SlaBreachEvaluator>();
+            services.AddSingleton<IEventEvaluator, EventReopenEvaluator>();
 
             services.AddHostedService<EventProcessingService>();
         }

@@ -17,4 +17,8 @@ internal sealed record EventAlert
     public required string AssignedDeptName { get; init; }
 
     public required DateTimeOffset AssignedAt { get; init; }
+    
+    public DateTimeOffset? ReopenedAt { get; init; }
+    
+    public long? ActionId { get; set; }
 }
