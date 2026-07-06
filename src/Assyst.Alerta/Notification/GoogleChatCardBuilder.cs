@@ -7,7 +7,7 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
     public object Build(IReadOnlyList<EventAlert> alerts, DateTimeOffset now)
     {
         var cards = new List<object>();
-        
+
         // Separate alerts into SLA violations and Reopened events
         var slaAlerts = alerts.Where(a => a.Type is AlertType.Breached or AlertType.NearBreach).ToList();
         var reopenedAlerts = alerts.Where(a => a.Type is AlertType.Reopened).ToList();
@@ -21,7 +21,7 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
         // Build the Reopened card if there are any Reopened alerts
         if (reopenedAlerts.Count > 0)
         {
-            cards.Add(BuildCard("🔄 Reabertura de chamados", reopenedAlerts, now));
+            cards.Add(BuildCard("🔄 Reabertura de Chamados", reopenedAlerts, now, true));
         }
 
         return new
@@ -30,12 +30,16 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
         };
     }
 
-    private object BuildCard(string title, IReadOnlyList<EventAlert> alerts, DateTimeOffset now)
+    private object BuildCard(
+        string title,
+        IReadOnlyList<EventAlert> alerts,
+        DateTimeOffset now,
+        bool isReopened = false)
     {
         var sections = new object[alerts.Count];
         for (var i = 0; i < alerts.Count; i++)
         {
-            sections[i] = BuildSection(alerts[i], now);
+            sections[i] = BuildSection(alerts[i], now, isReopened);
         }
 
         return new
@@ -55,7 +59,7 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
         };
     }
 
-    private object BuildSection(EventAlert alert, DateTimeOffset now)
+    private object BuildSection(EventAlert alert, DateTimeOffset now, bool isReopened = false)
     {
         // Reopened alerts measure elapsed time from when the ticket was reopened, not when it was assigned.
         // ReopenedAt is guaranteed to be set whenever Type is Reopened.
@@ -86,38 +90,55 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
         var userLabel = alert.IsVipUser ? "Usuário(a) VIP" : "Usuário(a)";
         var eventUrl = string.Format(options.Value.EventUrlFormat.OriginalString, alert.Id);
 
+        var widgets = new List<object>
+        {
+            DecoratedText(
+                icon: statusIcon,
+                text: isReopened
+                    ? $" · <b>{alert.Ref}</b>" +
+                      $" · {alert.AssignedDeptName}" +
+                      $" · {referenceAt:dd/MM/yy HH:mm}"
+                    : $"<font color=\"{color}\"><b>{elapsedText}</b></font>" +
+                      $" · <b>{alert.Ref}</b>" +
+                      $" · {alert.AssignedDeptName}" +
+                      $" · {referenceAt:dd/MM/yy HH:mm}",
+                button: new
+                {
+                    text = "Abrir",
+                    icon = MaterialIcon("open_in_new"),
+                    onClick = new
+                    {
+                        openLink = new
+                        {
+                            url = eventUrl
+                        }
+                    }
+                })
+        };
+
+        if (alert.Type is not AlertType.Reopened)
+        {
+            widgets.Add(DecoratedText(
+                icon: "info",
+                topLabel: "Motivo",
+                text: reasonText));
+            
+            widgets.Add(DecoratedText(
+                icon: "person",
+                topLabel: userLabel,
+                text: alert.UserName));
+        }
+
+        widgets.Add(DecoratedText(
+            icon: "description",
+            topLabel: "Resumo",
+            text: alert.Summary));
+
         return new
         {
             collapsible = true,
             uncollapsibleWidgetsCount = 1,
-            widgets = new[]
-            {
-                // Header: colored elapsed time + reference + department + reference date, with "Abrir" button
-                DecoratedText(
-                    icon: statusIcon,
-                    text: $"<font color=\"{color}\"><b>{elapsedText}</b></font>" +
-                          $" · <b>{alert.Ref}</b>" +
-                          $" · {alert.AssignedDeptName}" +
-                          $" · {referenceAt:dd/MM/yy HH:mm}",
-                    button: new
-                    {
-                        text = "Abrir",
-                        icon = MaterialIcon("open_in_new"),
-                        onClick = new
-                        {
-                            openLink = new
-                            {
-                                url = eventUrl
-                            }
-                        }
-                    }),
-                DecoratedText(
-                    icon: "info",
-                    topLabel: "Motivo",
-                    text: reasonText),
-                DecoratedText(icon: "person", topLabel: userLabel, text: alert.UserName),
-                DecoratedText(icon: "description", topLabel: "Resumo", text: alert.Summary)
-            }
+            widgets = widgets.ToArray()
         };
     }
 
