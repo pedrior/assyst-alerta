@@ -12,7 +12,7 @@ internal sealed class EventBuilder
     private string summary = "Estou precisando de um dispositivo que tenha grande capacidade de memória";
     private string alertStatus = string.Empty;
     private DateTimeOffset assignedAt = DefaultAssignedAt;
-    private int assignedDepartmentId = 547;
+    private Department assignedDepartment = Department.N2JoaoPessoa;
     private DateTimeOffset? pausedAt;
 
     public EventBuilder WithId(int value)
@@ -51,9 +51,9 @@ internal sealed class EventBuilder
         return this;
     }
 
-    public EventBuilder WithAssignedDepartmentId(int value)
+    public EventBuilder WithAssignedDepartmentId(Department value)
     {
-        assignedDepartmentId = value;
+        assignedDepartment = value;
         return this;
     }
     
@@ -71,7 +71,7 @@ internal sealed class EventBuilder
         Summary = summary,
         AlertStatus = alertStatus,
         AssignedAt = assignedAt,
-        AssignedDeptId = assignedDepartmentId,
+        AssignedDepartment = assignedDepartment,
         SlaClockStoppedAt = pausedAt
     };
 }

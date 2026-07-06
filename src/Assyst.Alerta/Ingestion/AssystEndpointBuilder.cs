@@ -19,7 +19,7 @@ internal sealed class AssystEndpointBuilder(IOptions<EventIngestionOptions> opti
         "lastSlaClockStop",
         "actions[dateActioned,actioningServDept[name],actionType[shortCode]]");
 
-    public Uri BuildEventsEndpoint(IReadOnlyCollection<Departments> departments)
+    public Uri BuildEventsEndpoint(IReadOnlyCollection<Department> departments)
     {
         ArgumentOutOfRangeException.ThrowIfZero(departments.Count);
 
@@ -35,7 +35,7 @@ internal sealed class AssystEndpointBuilder(IOptions<EventIngestionOptions> opti
             Path = EventsPath,
             Query = $"{string.Join('&', departmentIdQueries)}" +
                     $"&eventStatus=open" +
-                    $"&fields={FieldsQuery}"
+                    $"&fields=[{FieldsQuery}]"
         };
 
         return builder.Uri;

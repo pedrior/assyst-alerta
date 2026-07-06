@@ -11,6 +11,17 @@ internal sealed partial class SlaBreachEvaluator(
     ILogger<SlaBreachEvaluator> logger) : IEventEvaluator
 {
     private const string VipAlertStatus = "RED";
+    
+    private static readonly HashSet<Department> AllowedDepartments =
+    [
+        Department.N2JoaoPessoa,
+        Department.N2CampinaGrande,
+        Department.N2Patos,
+        Department.N2Sousa,
+        Department.N2ManutencaoEquipamento,
+        Department.N2PJe,
+        Department.N2SuporteEspecializado
+    ];
 
     private readonly EventProcessingOptions options = options.Value;
 
@@ -47,6 +58,11 @@ internal sealed partial class SlaBreachEvaluator(
 
     private static bool EvaluateEligibility(Event evt)
     {
+        if (!AllowedDepartments.Contains(evt.AssignedDepartment))
+        {
+            return false;
+        }
+
         return evt.SlaClockStoppedAt is null && evt.Actions.All(a => a.Type.Code != "EM_ATENDIMENTO_2N");
     }
 
@@ -58,7 +74,7 @@ internal sealed partial class SlaBreachEvaluator(
         Summary = @event.Summary,
         UserName = @event.UserName,
         IsVipUser = @event.AlertStatus is VipAlertStatus,
-        AssignedDeptName = EventDepartments.GetName(@event.AssignedDeptId),
+        AssignedDeptName = EventDepartments.GetName(@event.AssignedDepartment),
         AssignedAt = @event.AssignedAt.TruncateToSeconds()
     };
 

@@ -1,21 +1,23 @@
-using System.Collections.Frozen;
+using Assyst.Alerta.Models;
 
 namespace Assyst.Alerta.Processing;
 
 internal static class EventDepartments
 {
-    private static readonly FrozenDictionary<int, string> WellKnownDepartments = new Dictionary<int, string>
+    public static string GetName(Department department) => department switch
     {
-        [547] = "2N – João Pessoa",
-        [553] = "2N – Patos",
-        [554] = "2N – Souza",
-        [555] = "2N – Campina Grande",
-        [570] = "2N – Manut. Equip.",
-        [594] = "2N – PJe"
-    }.ToFrozenDictionary();
-
-    public static string GetName(int departmentId)
-    {
-        return WellKnownDepartments.TryGetValue(departmentId, out var name) ? name : $"{departmentId}";
-    }
+        Department.N1 => "1º Nível",
+        Department.N2JoaoPessoa => "2º Nível João Pessoa",
+        Department.N2CampinaGrande => "2º Nível Campina Grande",
+        Department.N2Patos => "2º Nível Patos",
+        Department.N2Sousa => "2º Nível Sousa",
+        Department.N2ManutencaoEquipamento => "2º Nível Manutenção",
+        Department.N2PJe => "2º Nível PJe",
+        Department.N2SuporteEspecializado => "2º Nível Especializado",
+        Department.N3RedeConectividade => "3º Nível Redes",
+        Department.N3Seguranca => "3º Nível Segurança",
+        Department.N3SustentacaoInfra => "3º Nível Sustentação",
+        Department.N3BusinessIntelligenceBd => "3º Nível BI",
+        _ => "Desconhecido"
+    };
 }

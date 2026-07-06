@@ -23,7 +23,7 @@ internal sealed record Event
     public DateTimeOffset AssignedAt { get; init; }
 
     [JsonPropertyName("assignedServDeptId")]
-    public required int AssignedDeptId { get; init; }
+    public required Department AssignedDepartment { get; init; }
     
     [JsonPropertyName("lastSlaClockStop")]
     public DateTimeOffset? SlaClockStoppedAt { get; init; }

@@ -8,7 +8,7 @@ internal sealed class EventReopenEvaluator : IEventEvaluator
     public EventAlert? Evaluate(Event evt)
     {
         EventAlert? latestAlert = null;
-        bool hasSeenPendingClosure = false;
+        var hasSeenPendingClosure = false;
 
         // Evaluate from oldest to newest to verify the sequence
         var sortedActions = evt.Actions.OrderBy(a => a.CreatedAt);
@@ -25,19 +25,24 @@ internal sealed class EventReopenEvaluator : IEventEvaluator
                 latestAlert = new EventAlert
                 {
                     Type = AlertType.Reopened,
-                    Id = 0,
+                    Id = evt.Id,
                     ActionId = action.Id, // Essential for the CallbackFilter deduplication
                     Ref = evt.Ref,
                     Summary = evt.Summary,
                     UserName = evt.UserName,
                     IsVipUser = evt.AlertStatus is "RED",
-                    AssignedDeptName = EventDepartments.GetName(evt.AssignedDeptId),
+                    AssignedDeptName = EventDepartments.GetName(evt.AssignedDepartment),
                     AssignedAt = evt.AssignedAt.TruncateToSeconds(),
                     ReopenedAt = action.CreatedAt
                 };
 
                 // Reset flag so the next RE-OPEN requires a new PENDING-CLOSURE
-                hasSeenPendingClosure = false; 
+                hasSeenPendingClosure = false;
+            }
+            else if (action.Type.Code is "EM_ATENDIMENTO_1N" or "EM_ATENDIMENTO_2N" or "EM_ATENDIMENTO_3N")
+            {
+                // Cancel the alert if this occurs after a valid reopen
+                latestAlert = null;
             }
         }
 

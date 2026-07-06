@@ -28,7 +28,6 @@ public sealed class SlaBreachEvaluatorTests
         DateTimeOffset? now = null,
         TimeSpan? sla = null,
         double nearBreachThreshold = 0.75,
-        string[]? assignorDepartmentsFilter = null,
         IOptions<SchedulerOptions>? schedulerOptions = null)
     {
         var time = new FakeTimeProvider();
@@ -133,7 +132,7 @@ public sealed class SlaBreachEvaluatorTests
         // Arrange
         var evaluator = NewEvaluator(now: AssignedAt.AddMinutes(11));
         var @event = new EventBuilder()
-            .WithAssignedDepartmentId(553)
+            .WithAssignedDepartmentId(Department.N2Patos)
             .Build();
 
         // Act

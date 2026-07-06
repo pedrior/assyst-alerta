@@ -13,7 +13,7 @@ internal sealed partial class EventIngestionService(
     IOptions<EventIngestionOptions> options,
     ILogger<EventIngestionService> logger) : BackgroundService
 {
-    private static readonly Departments[] MonitoredDepartments = Enum.GetValues<Departments>();
+    private static readonly Department[] MonitoredDepartments = Enum.GetValues<Department>();
 
     private readonly EventIngestionOptions options = options.Value;
     private readonly HttpClient httpClient = httpClientFactory.CreateClient(HttpClientNames.Assyst);
