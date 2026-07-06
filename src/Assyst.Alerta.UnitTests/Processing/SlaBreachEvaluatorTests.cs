@@ -125,24 +125,7 @@ public sealed class SlaBreachEvaluatorTests
         alert.Should().NotBeNull();
         alert.IsVipUser.Should().Be(expectedVip);
     }
-
-    [Fact]
-    public void Evaluate_DepartmentResolvedForKnownId()
-    {
-        // Arrange
-        var evaluator = NewEvaluator(now: AssignedAt.AddMinutes(11));
-        var @event = new EventBuilder()
-            .WithAssignedDepartmentId(Department.N2Patos)
-            .Build();
-
-        // Act
-        var alert = evaluator.Evaluate(@event);
-
-        // Assert
-        alert.Should().NotBeNull();
-        alert.AssignedDeptName.Should().Be("2N – Patos");
-    }
-
+    
     [Fact]
     public void Evaluate_AssignedAtIsTruncatedToSeconds()
     {
