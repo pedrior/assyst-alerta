@@ -1,4 +1,3 @@
-using Assyst.Alerta.Ingestion;
 using Assyst.Alerta.Notification;
 using Assyst.Alerta.Processing;
 using Assyst.Alerta.Scheduling;
@@ -29,22 +28,9 @@ internal static class TestOptions
         });
     }
 
-    public static IOptions<EventIngestionOptions> Ingestion(
-        string baseUrl = "https://assyst.example.com/",
-        string authorization = "Basic dXNlcjpwYXNz",
-        int[]? departmentIds = null)
-    {
-        return Options.Create(new EventIngestionOptions
-        {
-            BaseUrl = new Uri(baseUrl, UriKind.Absolute),
-            Authorization = authorization
-        });
-    }
-
     public static IOptions<EventProcessingOptions> Processing(
         TimeSpan? sla = null,
-        double nearBreachThreshold = 0.75,
-        string[]? assignorDepartmentsFilter = null)
+        double nearBreachThreshold = 0.75)
     {
         return Options.Create(new EventProcessingOptions
         {

@@ -34,7 +34,7 @@ public sealed class SlaBreachEvaluatorTests
         var time = new FakeTimeProvider();
         time.SetUtcNow(now ?? DateTimeOffset.UtcNow);
 
-        var options = TestOptions.Processing(sla, nearBreachThreshold, assignorDepartmentsFilter);
+        var options = TestOptions.Processing(sla, nearBreachThreshold);
         var scheduler = new Scheduler(time, schedulerOptions ?? AlwaysOpen);
 
         return new SlaBreachEvaluator(time, scheduler, options, NullLogger<SlaBreachEvaluator>.Instance);
