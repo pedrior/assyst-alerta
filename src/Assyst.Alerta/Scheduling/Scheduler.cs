@@ -26,4 +26,38 @@ internal sealed class Scheduler(TimeProvider time, IOptions<SchedulerOptions> op
         var timeOfDay = TimeOnly.FromTimeSpan(local.TimeOfDay);
         return timeOfDay >= options.StartTime && timeOfDay < options.EndTime;
     }
+    
+    public TimeSpan CalculateElapsedBusinessTime(DateTimeOffset start, DateTimeOffset end)
+    {
+        if (end <= start)
+        {
+            return TimeSpan.Zero;
+        }
+        
+        var elapsed = TimeSpan.Zero;
+        var currentDate = DateOnly.FromDateTime(start.DateTime);
+        var endDate = DateOnly.FromDateTime(end.DateTime);
+
+        for (; currentDate <= endDate; currentDate = currentDate.AddDays(1))
+        {
+            if (!days.Contains(currentDate.DayOfWeek) || holidays.Contains(currentDate))
+            {
+                continue;
+            }
+
+            var offset = time.LocalTimeZone.GetUtcOffset(currentDate.ToDateTime(TimeOnly.MinValue));
+            var dayStart = new DateTimeOffset(currentDate.ToDateTime(options.StartTime), offset);
+            var dayEnd = new DateTimeOffset(currentDate.ToDateTime(options.EndTime), offset);
+
+            var windowStart = dayStart > start ? dayStart : start;
+            var windowEnd = dayEnd < end ? dayEnd : end;
+
+            if (windowStart < windowEnd)
+            {
+                elapsed += windowEnd - windowStart;
+            }
+        }
+
+        return elapsed;
+    }
 }

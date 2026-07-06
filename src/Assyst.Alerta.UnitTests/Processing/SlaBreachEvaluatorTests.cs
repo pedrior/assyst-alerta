@@ -1,5 +1,6 @@
 using Assyst.Alerta.Models;
 using Assyst.Alerta.Processing.Evaluators;
+using Assyst.Alerta.Scheduling;
 using Assyst.Alerta.UnitTests.TestData;
 using Microsoft.Extensions.Time.Testing;
 
@@ -10,18 +11,33 @@ public sealed class SlaBreachEvaluatorTests
 {
     private static readonly DateTimeOffset AssignedAt = EventBuilder.DefaultAssignedAt;
 
+    // Used by tests that only exercise SLA threshold math, not calendar awareness.
+    private static readonly IOptions<SchedulerOptions> AlwaysOpen = Options.Create(new SchedulerOptions
+    {
+        StartTime = TimeOnly.MinValue,
+        EndTime = TimeOnly.MaxValue,
+        Days =
+        [
+            DayOfWeek.Sunday, DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday,
+            DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday
+        ],
+        Holidays = []
+    });
+
     private static SlaBreachEvaluator NewEvaluator(
         DateTimeOffset? now = null,
         TimeSpan? sla = null,
         double nearBreachThreshold = 0.75,
-        string[]? assignorDepartmentsFilter = null)
+        string[]? assignorDepartmentsFilter = null,
+        IOptions<SchedulerOptions>? schedulerOptions = null)
     {
         var time = new FakeTimeProvider();
         time.SetUtcNow(now ?? DateTimeOffset.UtcNow);
 
         var options = TestOptions.Processing(sla, nearBreachThreshold, assignorDepartmentsFilter);
+        var scheduler = new Scheduler(time, schedulerOptions ?? AlwaysOpen);
 
-        return new SlaBreachEvaluator(time, options, NullLogger<SlaBreachEvaluator>.Instance);
+        return new SlaBreachEvaluator(time, scheduler, options, NullLogger<SlaBreachEvaluator>.Instance);
     }
 
     [Fact]
@@ -171,5 +187,61 @@ public sealed class SlaBreachEvaluatorTests
         alert.Ref.Should().Be("S1456789");
         alert.Summary.Should().Be("PJe com lentidão");
         alert.UserName.Should().Be("Ana Carla");
+    }
+
+    // --- Business-hours awareness -------------------------------------------------
+
+    [Fact]
+    public void Evaluate_AcrossHolidayGap_CountsOnlyBusinessTimeElapsed()
+    {
+        // Arrange: assigned Monday 17:00 (1h before close). Tuesday and Wednesday
+        // are holidays. "Now" is Thursday 09:05. Wall-clock elapsed is ~64h, but
+        // business elapsed is only 1h (Mon) + 5min (Thu) = 65min, above the 10min SLA.
+        var assignedAt = new DateTimeOffset(2026, 5, 4, 17, 0, 0, TimeSpan.Zero); // Monday
+        var now = new DateTimeOffset(2026, 5, 7, 9, 5, 0, TimeSpan.Zero); // Thursday
+
+        var schedulerOptions = Options.Create(new SchedulerOptions
+        {
+            StartTime = new TimeOnly(9, 0),
+            EndTime = new TimeOnly(18, 0),
+            Holidays = [new DateOnly(2026, 5, 5), new DateOnly(2026, 5, 6)]
+        });
+
+        var evaluator = NewEvaluator(now: now, schedulerOptions: schedulerOptions);
+        var @event = new EventBuilder().WithAssignedAt(assignedAt).Build();
+
+        // Act
+        var alert = evaluator.Evaluate(@event);
+
+        // Assert
+        alert.Should().NotBeNull();
+        alert.Type.Should().Be(AlertType.Breached);
+    }
+
+    [Fact]
+    public void Evaluate_AcrossHolidayGap_DoesNotFalselyBreachWhenBusinessTimeIsLow()
+    {
+        // Arrange: assigned Monday 17:58 (2min before close). Tuesday and Wednesday
+        // are holidays. "Now" is Thursday 09:03. Business elapsed is only
+        // 2min (Mon) + 3min (Thu) = 5min, below the 7.5min near-breach threshold,
+        // even though ~64h have passed on the wall clock.
+        var assignedAt = new DateTimeOffset(2026, 5, 4, 17, 58, 0, TimeSpan.Zero); // Monday
+        var now = new DateTimeOffset(2026, 5, 7, 9, 3, 0, TimeSpan.Zero); // Thursday
+
+        var schedulerOptions = Options.Create(new SchedulerOptions
+        {
+            StartTime = new TimeOnly(9, 0),
+            EndTime = new TimeOnly(18, 0),
+            Holidays = [new DateOnly(2026, 5, 5), new DateOnly(2026, 5, 6)]
+        });
+
+        var evaluator = NewEvaluator(now: now, schedulerOptions: schedulerOptions);
+        var @event = new EventBuilder().WithAssignedAt(assignedAt).Build();
+
+        // Act
+        var alert = evaluator.Evaluate(@event);
+
+        // Assert
+        alert.Should().BeNull();
     }
 }

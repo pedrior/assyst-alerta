@@ -1,10 +1,12 @@
 using Assyst.Alerta.Extensions;
 using Assyst.Alerta.Models;
+using Assyst.Alerta.Scheduling;
 
 namespace Assyst.Alerta.Processing.Evaluators;
 
 internal sealed partial class SlaBreachEvaluator(
     TimeProvider time,
+    Scheduler scheduler,
     IOptions<EventProcessingOptions> options,
     ILogger<SlaBreachEvaluator> logger) : IEventEvaluator
 {
@@ -20,10 +22,8 @@ internal sealed partial class SlaBreachEvaluator(
             return null;
         }
 
-        var assignedAt = evt.AssignedAt
-            .TruncateToSeconds();
-
-        var elapsed = time.GetLocalNow() - assignedAt;
+        var assignedAt = evt.AssignedAt.TruncateToSeconds();
+        var elapsed = scheduler.CalculateElapsedBusinessTime(assignedAt, time.GetLocalNow());
         var progress = elapsed / options.Sla;
 
         if (progress < options.NearBreachThreshold)
