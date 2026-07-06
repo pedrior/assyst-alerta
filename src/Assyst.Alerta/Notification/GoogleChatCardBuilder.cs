@@ -95,7 +95,7 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
             DecoratedText(
                 icon: statusIcon,
                 text: isReopened
-                    ? $" · <b>{alert.Ref}</b>" +
+                    ? $"<b>{alert.Ref}</b>" +
                       $" · {alert.AssignedDeptName}" +
                       $" · {referenceAt:dd/MM/yy HH:mm}"
                     : $"<font color=\"{color}\"><b>{elapsedText}</b></font>" +
@@ -122,7 +122,7 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
                 icon: "info",
                 topLabel: "Motivo",
                 text: reasonText));
-            
+
             widgets.Add(DecoratedText(
                 icon: "person",
                 topLabel: userLabel,
