@@ -37,7 +37,7 @@ internal static class ServiceCollectionExtensions
 
             services.AddMemoryCache();
 
-            services.AddSingleton<CallbackFilter>();
+            services.AddSingleton(new CallbackFilter("Data Source=callback-filter.db"));
             services.AddSingleton<IEventEvaluator, SlaBreachEvaluator>();
             services.AddSingleton<IEventEvaluator, EventReopenEvaluator>();
 
