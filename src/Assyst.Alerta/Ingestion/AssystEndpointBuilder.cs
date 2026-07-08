@@ -11,7 +11,7 @@ internal sealed class AssystEndpointBuilder(IOptions<EventIngestionOptions> opti
         ",",
         "id",
         "formattedReference",
-        "affectedUserId",
+        "affectedUserName",
         "shortDescription",
         "alertStatusEnum",
         "dateOfLastAssignment",
