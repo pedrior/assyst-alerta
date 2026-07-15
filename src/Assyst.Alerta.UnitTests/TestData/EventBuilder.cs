@@ -13,6 +13,7 @@ internal sealed class EventBuilder
     private string alertStatus = string.Empty;
     private DateTimeOffset assignedAt = DefaultAssignedAt;
     private Department assignedDepartment = Department.N2JoaoPessoa;
+    private AssignedUser assignedUser = new() { Name = "Ricardo Souza" };
     private DateTimeOffset? pausedAt;
 
     public EventBuilder WithId(int value)
@@ -72,6 +73,7 @@ internal sealed class EventBuilder
         AlertStatus = alertStatus,
         AssignedAt = assignedAt,
         AssignedDepartment = assignedDepartment,
-        SlaClockStoppedAt = pausedAt
+        SlaClockStoppedAt = pausedAt,
+        AssignedUser = assignedUser
     };
 }

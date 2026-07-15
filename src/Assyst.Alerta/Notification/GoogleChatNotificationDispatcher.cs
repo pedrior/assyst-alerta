@@ -8,7 +8,6 @@ namespace Assyst.Alerta.Notification;
 internal sealed partial class GoogleChatNotificationDispatcher(
     TimeProvider time,
     IHttpClientFactory httpClientFactory,
-    IOptions<EventNotificationOptions> options,
     ILogger<GoogleChatNotificationDispatcher> logger)
 {
     private const int MaxRetries = 3;
@@ -22,23 +21,24 @@ internal sealed partial class GoogleChatNotificationDispatcher(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private long lastPostTimestamp;
+    // Google Chat's rate limit is per webhook/space, so throttle each URL independently.
+    private readonly Dictionary<Uri, long> lastPostByUrl = [];
 
-    public async Task<bool> DispatchAsync(object payload, int count, CancellationToken cancellation)
+    public async Task<bool> DispatchAsync(Uri webhookUrl, object payload, int count, CancellationToken cancellation)
     {
         using var client = httpClientFactory.CreateClient();
 
         for (var attempt = 1; attempt <= MaxRetries; attempt++)
         {
-            await ThrottleAsync(cancellation);
+            await ThrottleAsync(webhookUrl, cancellation);
 
             using var response = await client.PostAsJsonAsync(
-                options.Value.WebhookUrl,
+                webhookUrl,
                 payload,
                 JsonOptions,
                 cancellation);
 
-            lastPostTimestamp = time.GetTimestamp();
+            lastPostByUrl[webhookUrl] = time.GetTimestamp();
 
             if (response.IsSuccessStatusCode)
             {
@@ -59,9 +59,9 @@ internal sealed partial class GoogleChatNotificationDispatcher(
         return false;
     }
 
-    private async Task ThrottleAsync(CancellationToken cancellation)
+    private async Task ThrottleAsync(Uri webhookUrl, CancellationToken cancellation)
     {
-        if (lastPostTimestamp is 0)
+        if (!lastPostByUrl.TryGetValue(webhookUrl, out var lastPostTimestamp))
         {
             return;
         }

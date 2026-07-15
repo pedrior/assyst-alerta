@@ -31,6 +31,9 @@ internal sealed class EventReopenEvaluator : IEventEvaluator
                     Summary = evt.Summary,
                     UserName = evt.UserName,
                     IsVipUser = evt.AlertStatus is "RED",
+                    Department = evt.AssignedDepartment,
+                    AssignedUser = evt.AssignedUser.Name ?? evt.Actions
+                        .FirstOrDefault(a => a.Type.Code == "PENDING-CLOSURE")?.Type.ActionedBy?.Name ?? "N/A",
                     AssignedDeptName = EventDepartments.GetName(evt.AssignedDepartment),
                     AssignedAt = evt.AssignedAt.TruncateToSeconds(),
                     ReopenedAt = action.CreatedAt

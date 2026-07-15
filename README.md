@@ -93,8 +93,29 @@ Todas as seções são validadas na inicialização.
 
 | Chave | Tipo | Obrigatório | Padrão | Descrição |
 |---|---|---|---|---|
-| `WebhookUrl` | `Uri` | ✓ | — | URL do webhook do Google Chat |
 | `EventUrlFormat` | `Uri` | ✓ | — | URL do portal com `{0}` como placeholder do ID do chamado |
+| `Webhooks` | `WebhookTarget[]` | ✓ | — | Lista de webhooks do Google Chat (mín. 1) |
+
+Cada entrada de `Webhooks`:
+
+| Chave | Tipo | Obrigatório | Padrão | Descrição |
+|---|---|---|---|---|
+| `Url` | `Uri` | ✓ | — | URL do webhook do Google Chat |
+| `Departments` | `int[]` | — | `[]` | IDs numéricos dos departamentos que este webhook recebe. Vazio = todos |
+| `AlertTypes` | `string[]` | — | `[]` | Tipos que este webhook recebe: `NearBreach`, `Breached`, `Reopened`. Vazio = todos |
+
+Um alerta é enviado a **todos** os webhooks cujos filtros correspondem (fan-out). Use um webhook com filtros vazios como canal global e webhooks com filtros específicos para roteamento por departamento e/ou tipo. Exemplo:
+
+```json
+"Notification": {
+  "EventUrlFormat": "https://portal.example.com/{0}",
+  "Webhooks": [
+    { "Url": "https://chat.googleapis.com/.../global" },
+    { "Url": "https://chat.googleapis.com/.../n2-sla", "Departments": [547, 555], "AlertTypes": ["NearBreach", "Breached"] },
+    { "Url": "https://chat.googleapis.com/.../reaberturas", "AlertTypes": ["Reopened"] }
+  ]
+}
+```
 
 ---
 

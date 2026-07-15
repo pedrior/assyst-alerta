@@ -21,7 +21,7 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
         // Build the Reopened card if there are any Reopened alerts
         if (reopenedAlerts.Count > 0)
         {
-            cards.Add(BuildCard("🔄 Reabertura de Chamados", reopenedAlerts, now, true));
+            cards.Add(BuildCard("🔄 Reabertura de chamado", reopenedAlerts, now, true));
         }
 
         return new
@@ -47,13 +47,7 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
             cardId = Guid.NewGuid().ToString("N"),
             card = new
             {
-                header = new
-                {
-                    title,
-                    subtitle = alerts.Count is 1
-                        ? "1 chamado requer atenção"
-                        : $"{alerts.Count} chamados requerem atenção"
-                },
+                header = new { title },
                 sections
             }
         };
@@ -61,8 +55,6 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
 
     private object BuildSection(EventAlert alert, DateTimeOffset now, bool isReopened = false)
     {
-        // Reopened alerts measure elapsed time from when the ticket was reopened, not when it was assigned.
-        // ReopenedAt is guaranteed to be set whenever Type is Reopened.
         var referenceAt = alert.Type is AlertType.Reopened
             ? alert.ReopenedAt ?? throw new InvalidOperationException("Reopened alerts must have ReopenedAt set.")
             : alert.AssignedAt;
@@ -70,24 +62,15 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
         var elapsed = now - referenceAt;
         var elapsedText = FormatDuration(elapsed);
 
-        var (color, statusIcon, reasonText) = alert.Type switch
+        var (color, statusIcon) = alert.Type switch
         {
-            AlertType.Breached => (
-                "#D32F2F",
-                "timer_off",
-                $"Sem técnico atribuído ou pendente de atendimento há {elapsedText}"),
-            AlertType.NearBreach => (
-                "#E67C00",
-                "schedule",
-                $"Sem técnico atribuído ou pendente de atendimento há {elapsedText}"),
-            AlertType.Reopened => (
-                "#1A73E8",
-                "restore",
-                $"Chamado reaberto em {referenceAt:dd/MM/yy 'às' HH:mm}"),
+            AlertType.Breached => ("#D32F2F", "timer_off"),
+            AlertType.NearBreach => ("#E67C00", "schedule"),
+            AlertType.Reopened => ("#1A73E8", "restore"),
             _ => throw new ArgumentOutOfRangeException(nameof(alert.Type), alert.Type, "Unsupported alert type")
         };
 
-        var userLabel = alert.IsVipUser ? "Usuário(a) VIP" : "Usuário(a)";
+        var userLabel = alert.IsVipUser ? "Usuário(a) VIP ⚠️" : "Usuário(a)";
         var eventUrl = string.Format(options.Value.EventUrlFormat.OriginalString, alert.Id);
 
         var widgets = new List<object>
@@ -113,20 +96,19 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
                             url = eventUrl
                         }
                     }
-                })
-        };
-
-        if (alert.Type is not AlertType.Reopened)
-        {
-            widgets.Add(DecoratedText(
-                icon: "info",
-                topLabel: "Motivo",
-                text: reasonText));
-
-            widgets.Add(DecoratedText(
+                }),
+            DecoratedText(
                 icon: "person",
                 topLabel: userLabel,
-                text: alert.UserName));
+                text: alert.UserName),
+        };
+
+        if (alert.Type is AlertType.Reopened)
+        {
+            widgets.Insert(1, DecoratedText(
+                icon: "person_check",
+                topLabel: "Técnico",
+                text: alert.AssignedUser));
         }
 
         widgets.Add(DecoratedText(
@@ -137,7 +119,7 @@ internal sealed class GoogleChatCardBuilder(IOptions<EventNotificationOptions> o
         return new
         {
             collapsible = true,
-            uncollapsibleWidgetsCount = 1,
+            uncollapsibleWidgetsCount = 3,
             widgets = widgets.ToArray()
         };
     }

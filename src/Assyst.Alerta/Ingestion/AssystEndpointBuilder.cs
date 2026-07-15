@@ -15,9 +15,10 @@ internal sealed class AssystEndpointBuilder(IOptions<EventIngestionOptions> opti
         "shortDescription",
         "alertStatusEnum",
         "dateOfLastAssignment",
+        "assignedUser[name]",
         "assignedServDeptId",
         "lastSlaClockStop",
-        "actions[dateActioned,actioningServDept[name],actionType[shortCode]]");
+        "actions[dateActioned,actionedBy[name],actioningServDept[name],actionType[shortCode]]");
 
     public Uri BuildEventsEndpoint(IReadOnlyCollection<Department> departments)
     {

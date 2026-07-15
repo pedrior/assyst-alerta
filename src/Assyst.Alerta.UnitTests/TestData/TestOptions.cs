@@ -41,12 +41,16 @@ internal static class TestOptions
 
     public static IOptions<EventNotificationOptions> Notification(
         string webhookUrl = "https://chat.googleapis.com/v1/spaces/XXXXX/messages?key=XXXXX&token=XXXXX",
-        string eventUrlFormat = "https://assyst.example.com/events/{0}")
+        string eventUrlFormat = "https://assyst.example.com/events/{0}",
+        IReadOnlyList<WebhookTarget>? webhooks = null)
     {
         return Options.Create(new EventNotificationOptions
         {
-            WebhookUrl = new Uri(webhookUrl, UriKind.Absolute),
-            EventUrlFormat = new Uri(eventUrlFormat, UriKind.Absolute)
+            EventUrlFormat = new Uri(eventUrlFormat, UriKind.Absolute),
+            Webhooks = webhooks ??
+            [
+                new WebhookTarget { Url = new Uri(webhookUrl, UriKind.Absolute) }
+            ]
         });
     }
 }

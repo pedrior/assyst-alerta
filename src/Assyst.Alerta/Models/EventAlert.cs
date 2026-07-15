@@ -14,6 +14,10 @@ internal sealed record EventAlert
 
     public required bool IsVipUser { get; init; }
 
+    public required Department Department { get; init; }
+
+    public required string AssignedUser { get; init; }
+    
     public required string AssignedDeptName { get; init; }
 
     public required DateTimeOffset AssignedAt { get; init; }

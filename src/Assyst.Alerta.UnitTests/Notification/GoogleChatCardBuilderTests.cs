@@ -25,7 +25,7 @@ public sealed class GoogleChatCardBuilderTests
     }
 
     [Fact]
-    public void Build_SingleAlert_HasSingularSubtitle()
+    public void Build_SingleAlert_HasNoSubtitle()
     {
         // Arrange
         var alerts = new[]
@@ -37,13 +37,11 @@ public sealed class GoogleChatCardBuilderTests
         var node = BuildAndParse(NewBuilder(), alerts, AssignedAt.AddMinutes(10));
 
         // Assert
-        node["cardsV2"]![0]!["card"]!["header"]!["subtitle"]!
-            .GetValue<string>()
-            .Should().Be("1 chamado requer atenção");
+        node["cardsV2"]![0]!["card"]!["header"]!["subtitle"].Should().BeNull();
     }
 
     [Fact]
-    public void Build_MultipleAlerts_HasPluralSubtitleAndOneSectionPerAlert()
+    public void Build_MultipleAlerts_HasNoSubtitleAndOneSectionPerAlert()
     {
         // Arrange
         var alerts = new[]
@@ -57,16 +55,14 @@ public sealed class GoogleChatCardBuilderTests
         var node = BuildAndParse(NewBuilder(), alerts, AssignedAt.AddMinutes(10));
         var card = node["cardsV2"]![0]!["card"]!;
 
-        card["header"]!["subtitle"]!
-            .GetValue<string>()
-            .Should().Be("3 chamados requerem atenção");
+        card["header"]!["subtitle"].Should().BeNull();
 
         card["sections"]!
             .AsArray().Should().HaveCount(3);
     }
 
     [Theory]
-    [InlineData(true, "Usuário(a) VIP")]
+    [InlineData(true, "Usuário(a) VIP ⚠️")]
     [InlineData(false, "Usuário(a)")]
     public void Build_UserWidget_LabelReflectsVipFlag(bool isVip, string expectedLabel)
     {
@@ -82,7 +78,7 @@ public sealed class GoogleChatCardBuilderTests
         var node = BuildAndParse(NewBuilder(), alerts, AssignedAt.AddHours(1));
 
         // Assert
-        var userWidget = node["cardsV2"]![0]!["card"]!["sections"]![0]!["widgets"]![2]!["decoratedText"]!;
+        var userWidget = node["cardsV2"]![0]!["card"]!["sections"]![0]!["widgets"]![1]!["decoratedText"]!;
 
         userWidget["topLabel"]!
             .GetValue<string>()

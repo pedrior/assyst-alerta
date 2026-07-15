@@ -21,6 +21,9 @@ internal sealed record Event
 
     [JsonPropertyName("dateOfLastAssignment")]
     public DateTimeOffset AssignedAt { get; init; }
+    
+    [JsonPropertyName("assignedUser")]
+    public required AssignedUser AssignedUser { get; init; }
 
     [JsonPropertyName("assignedServDeptId")]
     public required Department AssignedDepartment { get; init; }

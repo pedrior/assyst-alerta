@@ -9,6 +9,7 @@ internal sealed partial class EventNotificationService(
     GoogleChatCardBuilder cardBuilder,
     ChannelReader<IReadOnlyList<EventAlert>> alertsReader,
     GoogleChatNotificationDispatcher notificationDispatcher,
+    IOptions<EventNotificationOptions> options,
     ILogger<EventNotificationService> logger) : BackgroundService
 {
     private const int MaxSectionsPerCard = 10;
@@ -31,7 +32,7 @@ internal sealed partial class EventNotificationService(
                 // Sort alerts by severity (breached first) then by VIP.
                 pending.Sort(AlertPriorityComparer.Instance);
 
-                await DispatchInChunksAsync(pending, time.GetLocalNow(), cancellation);
+                await RouteAsync(pending, time.GetLocalNow(), cancellation);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -42,13 +43,19 @@ internal sealed partial class EventNotificationService(
 
     private List<EventAlert> FilterNewAlerts(IReadOnlyList<EventAlert> batch)
     {
-        // Collapse multiple in-batch alerts for the same ticket to the most severe.
-        var collapsed = new Dictionary<int, EventAlert>(batch.Count);
+        // Collapse in-batch SLA alerts for the same ticket to the most severe, but keep each
+        // distinct reopen (keyed by its action) so SLA and reopen alerts never merge — they may
+        // route to different webhooks.
+        var collapsed = new Dictionary<string, EventAlert>(batch.Count);
         foreach (var alert in batch)
         {
-            if (!collapsed.TryGetValue(alert.Id, out var existing) || alert.Type > existing.Type)
+            var key = alert.Type is AlertType.Reopened
+                ? $"reopen:{alert.Id}:{alert.ActionId}"
+                : $"sla:{alert.Id}";
+
+            if (!collapsed.TryGetValue(key, out var existing) || alert.Type > existing.Type)
             {
-                collapsed[alert.Id] = alert;
+                collapsed[key] = alert;
             }
         }
 
@@ -68,28 +75,47 @@ internal sealed partial class EventNotificationService(
         return pending;
     }
 
-    private async Task DispatchInChunksAsync(List<EventAlert> alerts, DateTimeOffset now, CancellationToken cancellation)
+    private async Task RouteAsync(List<EventAlert> alerts, DateTimeOffset now, CancellationToken cancellation)
     {
-        foreach (var chunk in alerts.Chunk(MaxSectionsPerCard))
-        {
-            try
-            {
-                var payload = cardBuilder.Build(chunk, now);
-                var dispatched = await notificationDispatcher.DispatchAsync(payload, chunk.Length, cancellation);
-                if (!dispatched)
-                {
-                    continue;
-                }
+        // An alert fans out to every webhook whose filters match it. Mark each alert notified
+        // once, after routing, if it reached at least one webhook successfully.
+        var notified = new HashSet<EventAlert>();
 
-                foreach (var alert in chunk)
+        foreach (var target in options.Value.Webhooks)
+        {
+            var matching = alerts.Where(target.Matches).ToList();
+            if (matching.Count is 0)
+            {
+                continue;
+            }
+
+            foreach (var chunk in matching.Chunk(MaxSectionsPerCard))
+            {
+                try
                 {
-                    deduplicator.MarkNotified(alert);
+                    var payload = cardBuilder.Build(chunk, now);
+                    var dispatched = await notificationDispatcher.DispatchAsync(
+                        target.Url, payload, chunk.Length, cancellation);
+                    if (!dispatched)
+                    {
+                        continue;
+                    }
+
+                    foreach (var alert in chunk)
+                    {
+                        notified.Add(alert);
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    LogChunkDispatchFailed(ex, chunk.Length);
                 }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                LogChunkDispatchFailed(ex, chunk.Length);
-            }
+        }
+
+        foreach (var alert in notified)
+        {
+            deduplicator.MarkNotified(alert);
         }
     }
 

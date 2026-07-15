@@ -8,4 +8,7 @@ internal sealed record ActionType
 
     [JsonPropertyName("shortCode")]
     public string Code { get; init; } = string.Empty;
+    
+    [JsonPropertyName("actionedBy")]
+    public ActionedBy? ActionedBy { get; init; }
 }

@@ -74,8 +74,10 @@ internal sealed partial class SlaBreachEvaluator(
         Summary = @event.Summary,
         UserName = @event.UserName,
         IsVipUser = @event.AlertStatus is VipAlertStatus,
+        Department = @event.AssignedDepartment,
         AssignedDeptName = EventDepartments.GetName(@event.AssignedDepartment),
-        AssignedAt = @event.AssignedAt.TruncateToSeconds()
+        AssignedAt = @event.AssignedAt.TruncateToSeconds(),
+        AssignedUser = @event.AssignedUser.Name ?? "N/A"
     };
 
     [LoggerMessage(LogLevel.Debug, "Event {Ref} within SLA alert threshold: {Elapsed} elapsed ({Progress:P})")]

@@ -12,8 +12,10 @@ internal sealed class EventAlertBuilder
     private string summary = "Intranet com problemas";
     private string userName = "Thayna Maria Araujo Martins";
     private bool isVipUser;
+    private Department departmentId = Department.N2JoaoPessoa;
     private string department = "2N – João Pessoa";
     private DateTimeOffset assignedAt = DefaultAssignedAt;
+    private long? actionId;
 
     public EventAlertBuilder WithType(AlertType value)
     {
@@ -57,6 +59,18 @@ internal sealed class EventAlertBuilder
         return this;
     }
 
+    public EventAlertBuilder WithDepartmentId(Department value)
+    {
+        departmentId = value;
+        return this;
+    }
+
+    public EventAlertBuilder WithActionId(long? value)
+    {
+        actionId = value;
+        return this;
+    }
+
     public EventAlertBuilder WithAssignedAt(DateTimeOffset value)
     {
         assignedAt = value;
@@ -71,7 +85,10 @@ internal sealed class EventAlertBuilder
         Summary = summary,
         UserName = userName,
         IsVipUser = isVipUser,
+        Department = departmentId,
         AssignedDeptName = department,
-        AssignedAt = assignedAt
+        AssignedAt = assignedAt,
+        ActionId = actionId,
+        AssignedUser = null!
     };
 }
